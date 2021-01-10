@@ -48,7 +48,7 @@ void setup() {
   Serial.begin(115200);
 
   matrix.begin();
-  matrix.setBrightness(40);
+  matrix.setBrightness(20);
   matrix.setRotation(1);
   matrix.fill(0);
   matrix.show();
@@ -60,6 +60,27 @@ void setup() {
 
   client.setServer(MQTT_SERVER, MQTT_PORT);
   client.setCallback(callback);
+}
+
+void sync() {
+  Serial.print("Sync: ");
+  uint8_t payload[5];
+  for(uint8_t x = 0; x < matrix.width(); x++) {
+    for(uint8_t y = 0; y < matrix.height(); y++) {
+      if(data[x][y][0] == 0 && data[x][y][1] == 0 && data[x][y][2] == 0) {
+        Serial.print(".");
+        continue;
+      }
+      payload[0] = x;
+      payload[1] = y;
+      payload[2] = data[x][y][0];
+      payload[3] = data[x][y][1];
+      payload[4] = data[x][y][2];
+      client.publish(DRAW_TOPIC, payload, sizeof(payload));
+      Serial.print(",");
+    }
+  }
+  Serial.println();
 }
 
 void callback(char* topic, byte* message, unsigned int length) {
@@ -89,24 +110,7 @@ void callback(char* topic, byte* message, unsigned int length) {
     matrix.drawPixel(x, y, color);
     matrix.show();
   } else if (strcmp(topic, CONNECT_TOPIC) == 0) {
-    Serial.print("Sync: ");
-    uint8_t payload[5];
-    for(uint8_t x = 0; x < matrix.width(); x++) {
-      for(uint8_t y = 0; y < matrix.height(); y++) {
-        if(data[x][y][0] == 0 && data[x][y][1] == 0 && data[x][y][2] == 0) {
-          Serial.print(".");
-          continue;
-        }
-        payload[0] = x;
-        payload[1] = y;
-        payload[2] = data[x][y][0];
-        payload[3] = data[x][y][1];
-        payload[4] = data[x][y][2];
-        client.publish(DRAW_TOPIC, payload, sizeof(payload));
-        Serial.print(",");
-      }
-    }
-    Serial.println();
+    sync();
   } else {
     Serial.print("Wrong topic?! ");
     Serial.println(topic);
@@ -120,6 +124,7 @@ void reconnect() {
       Serial.println("connected");
       client.subscribe(DRAW_TOPIC);
       client.subscribe(CONNECT_TOPIC);
+      sync();
     } else {
       Serial.print("failed, rc=");
       Serial.print(client.state());
