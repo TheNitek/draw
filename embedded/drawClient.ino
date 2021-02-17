@@ -23,11 +23,13 @@ TimerHandle_t mqttReconnectTimer;
 TimerHandle_t wifiReconnectTimer;
 
 const char DRAW_TOPIC[] = "nitek/draw";
+const char SYNC_TOPIC[] = "nitek/draw/sync";
 const char CONNECT_TOPIC[] = "nitek/draw/connect";
 
 uint16_t data[8][8] = {0};
 
 volatile bool updateMatrix = false;
+volatile bool syncMatrix = false;
 
 void startWifi() {
   Serial.println("Connecting Wifi");
@@ -98,23 +100,17 @@ void onMqttMessage(char* topic, char* payload, AsyncMqttClientMessageProperties 
         return;
       }
 
-      uint16_t color = payload[1] * 256 + payload[2];
+      uint16_t color = payload[2] * 256 + payload[1];
 
-      if(data[x][y] != color) {
-        data[x][y] = color;
+      if(data[matrix.width()-x][matrix.height()-y] != color) {
+        data[matrix.width()-x][matrix.height()-y] = color;
 
-        matrix.drawPixel(x, y, color);
+        matrix.drawPixel(x, y, payload[1] * 256 + payload[2]);
         updateMatrix = true;
       }
-    } else if (length == matrix.width()*matrix.height()*2) {
-      for(uint8_t x = 0; x < matrix.width(); x++) {
-        for(uint8_t y = 0; y < matrix.height(); y++) {
-          uint8_t i = 2*(x + (y*matrix.width()));
-          uint16_t color = payload[i] * 256 + payload[i+1];
-          matrix.drawPixel(x, y, color);
-        }
-      }
-      updateMatrix = true;
+    } else if (length == sizeof(data)) {
+      strncpy((char*)data, payload, sizeof(data));
+      syncMatrix = true;
     } else {
       Serial.print("Wrong msg size: ");
       Serial.println(length);
@@ -152,20 +148,21 @@ void setup() {
 }
 
 void sync() {
-  Serial.print("Sync: ");
-  char payload[8*8*2];
-  for(uint8_t x = 0; x < matrix.width(); x++) {
-    for(uint8_t y = 0; y < matrix.height(); y++) {
-      uint8_t i = 2*(x + (y*matrix.width()));
-      payload[i] = data[x][y] >> 8;
-      payload[i+1] = data[x][y] & 0xFF;
-    }
-  }
-  mqttClient.publish(DRAW_TOPIC, 1, false, payload, sizeof(payload));
+  Serial.print("Sync");
+  mqttClient.publish(SYNC_TOPIC, 1, false, (char*)data, sizeof(data));
   Serial.println();
 }
 
 void loop() {
+  if(syncMatrix) {
+    for(uint8_t x = 0; x < matrix.width(); x++) {
+      for(uint8_t y = 0; y < matrix.height(); y++) {
+        matrix.drawPixel(x, y, data[matrix.width()-x][matrix.height()-y]);
+      }
+    }
+    matrix.show();
+    syncMatrix = false;
+  }
   if(updateMatrix) {
     matrix.show();
     updateMatrix = false;

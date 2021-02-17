@@ -16,6 +16,7 @@
 
     <script>
       const draw_topic = 'nitek/draw';
+      const sync_topic = 'nitek/draw';
       const connect_topic = 'nitek/draw/connect';
       client = new Paho.MQTT.Client('wss://broker.emqx.io:8084/mqtt', Math.random().toString(36).substring(20));
 
@@ -33,6 +34,7 @@
         // Once a connection has been made, make a subscription and send a message.
         console.log("onConnect");
         client.subscribe(draw_topic);
+        client.subscribe(sync_topic);
 
         message = new Paho.MQTT.Message("1");
         message.destinationName = connect_topic;
