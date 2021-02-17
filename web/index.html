@@ -16,7 +16,7 @@
 
     <script>
       const draw_topic = 'nitek/draw';
-      const sync_topic = 'nitek/draw';
+      const sync_topic = 'nitek/draw/sync';
       const connect_topic = 'nitek/draw/connect';
       client = new Paho.MQTT.Client('wss://broker.emqx.io:8084/mqtt', Math.random().toString(36).substring(20));
 
