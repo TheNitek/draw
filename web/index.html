@@ -19,8 +19,8 @@
       const connect_topic = 'nitek/draw/connect';
       client = new Paho.MQTT.Client('wss://broker.emqx.io:8084/mqtt', Math.random().toString(36).substring(20));
 
-      var canvas = document.getElementById("canvas");
-      var context = canvas.getContext("2d");
+      let canvas = document.getElementById("canvas");
+      let context = canvas.getContext("2d");
 
 
       client.onConnectionLost = onConnectionLost;
@@ -51,12 +51,35 @@
 
       // called when a message arrives
       function onMessageArrived(message) {
-        console.log("onMessageArrived:"+toHexString(message.payloadBytes));
-        var x = message.payloadBytes[0];
-        var y = message.payloadBytes[1];
+        console.log("onMessageArrived: "+toHexString(message.payloadBytes));
+        if(message.payloadBytes.length == 3) {
+          processPixel(message.payloadBytes);
+        } else if(message.payloadBytes.length == 8*8*2) {
+          processMatrix(message.payloadBytes);
+        } else {
+          console.log("invalid msg length: " + message.payloadBytes.length);
+        }
+      }
 
-        context.fillStyle = '#' + toHexString(message.payloadBytes.slice(2, 5));
+      function processPixel(payload) {
+        let x = payload[0] >> 4;
+        let y = payload[0] & 0x0F;
+
+        let c = payload[1]*256 + payload[2];
+
+        context.fillStyle = '#' + toHexColor(c);
         context.fillRect(x, y, 1, 1);
+      }
+
+      function processMatrix(payload) {
+        for(x = 0; x < 8; x++) {
+          for(y = 0; y < 8; y++) {
+            let i = 2*(x + (y*8));
+            let c = payload[i] * 256 + payload[i+1];
+            context.fillStyle = '#' + toHexColor(c);
+            context.fillRect(x, y, 1, 1);
+          }
+        }
       }
 
       function toHexString(byteArray) {
@@ -65,27 +88,38 @@
         }).join('')
       }
 
-      var pixel_width = context.canvas.clientWidth / canvas.width;
-      var pixel_height = context.canvas.clientHeight / canvas.height;
+      function toHexColor(c) {
+        let r = ('0' + (c >> 11 << 3).toString(16)).slice(-2);
+        let g = ('0' + (((c >> 5) & 0x3F) << 2).toString(16)).slice(-2);
+        let b = ('0' + ((c & 0x1F) << 3).toString(16)).slice(-2);
+        
+        return '' + r + g + b;
+      }
 
-      var rect = canvas.getBoundingClientRect();
+      let pixel_width = context.canvas.clientWidth / canvas.width;
+      let pixel_height = context.canvas.clientHeight / canvas.height;
+
+      let rect = canvas.getBoundingClientRect();
 
       //Background
       context.fillStyle = "black";
       context.fillRect(0, 0, canvas.width, canvas.height);
 
       canvas.addEventListener("click", function(e) {
-        var x = Math.floor((e.clientX - rect.left) / pixel_width);
-        var y = Math.floor((e.clientY - rect.top) / pixel_height);
+        let x = Math.floor((e.clientX - rect.left) / pixel_width);
+        let y = Math.floor((e.clientY - rect.top) / pixel_height);
 
         context.fillStyle = document.getElementById("draw_color").value;
         context.fillRect(x, y, 1, 1);
-        var payload = new Uint8Array(5);
-        payload[0] = x;
-        payload[1] = y;
-        payload[2] = Number('0x' + context.fillStyle.substr(1, 2)).toString(10);
-        payload[3] = Number('0x' + context.fillStyle.substr(3, 2)).toString(10);
-        payload[4] = Number('0x' + context.fillStyle.substr(5, 2)).toString(10);
+        let r = Number('0x' + context.fillStyle.substr(1, 2)).toString(10);
+        let g = Number('0x' + context.fillStyle.substr(3, 2)).toString(10);
+        let b = Number('0x' + context.fillStyle.substr(5, 2)).toString(10);
+        let c = ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3);
+
+        let payload = new Uint8Array(3);
+        payload[0] = (x << 4) | y;
+        payload[1] = c >> 8;
+        payload[2] = c & 0xFF;
         message = new Paho.MQTT.Message(payload);
         message.destinationName = draw_topic;
         client.send(message);
