@@ -76,6 +76,7 @@ void onMqttConnect(bool sessionPresent) {
   Serial.println("Connected to MQTT.");
   mqttClient.subscribe(CONNECT_TOPIC, 1);
   mqttClient.subscribe(DRAW_TOPIC, 1);
+  sync();
 }
 
 void onMqttDisconnect(AsyncMqttClientDisconnectReason reason) {
@@ -102,8 +103,8 @@ void onMqttMessage(char* topic, char* payload, AsyncMqttClientMessageProperties 
 
       uint16_t color = payload[2] * 256 + payload[1];
 
-      if(data[matrix.width()-x][matrix.height()-y] != color) {
-        data[matrix.width()-x][matrix.height()-y] = color;
+      if(data[y][x] != color) {
+        data[y][x] = color;
 
         matrix.drawPixel(x, y, payload[1] * 256 + payload[2]);
         updateMatrix = true;
@@ -144,7 +145,6 @@ void setup() {
   mqttClient.setServer(MQTT_SERVER, MQTT_PORT);
 
   startWifi();
-
 }
 
 void sync() {
@@ -157,7 +157,7 @@ void loop() {
   if(syncMatrix) {
     for(uint8_t x = 0; x < matrix.width(); x++) {
       for(uint8_t y = 0; y < matrix.height(); y++) {
-        matrix.drawPixel(x, y, data[matrix.width()-x][matrix.height()-y]);
+        matrix.drawPixel(x, y, data[y][x]);
       }
     }
     matrix.show();
