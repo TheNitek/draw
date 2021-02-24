@@ -110,7 +110,7 @@ void onMqttMessage(char* topic, char* payload, AsyncMqttClientMessageProperties 
         updateMatrix = true;
       }
     } else if (length == sizeof(data)) {
-      strncpy((char*)data, payload, sizeof(data));
+      memcpy(data, payload, sizeof(data));
       syncMatrix = true;
     } else {
       Serial.print("Wrong msg size: ");
