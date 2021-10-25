@@ -4,6 +4,13 @@
     <meta charset="utf-8"/>
     <title>LED Draw</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js" type="text/javascript"></script>
+    <style>
+      td.color_history {
+        width: 20px;
+        height: 20px;
+        background-color: black;
+      }
+    </style>
   </head>
   <body>
 
@@ -11,33 +18,44 @@
 
     <form>
       <label for="draw_color">Choose color: </label>
-      <input type="color" id="draw_color" value="#FF0000">
+      <input type="color" id="draw_color" value="#00AAAA">
     </form>
 
+    <table id="color_history">
+      <tr>
+        <td class="color_history"></td>
+      </tr>
+    </table>
+
     <script>
-      const draw_topic = 'nitek/draw';
-      const sync_topic = 'nitek/draw/sync';
-      const connect_topic = 'nitek/draw/connect';
+      const DRAW_TOPIC = 'nitek/draw';
+      const SYNC_TOPIC = 'nitek/draw/sync';
+      const CONNECT_TOPIC = 'nitek/draw/connect';
       client = new Paho.MQTT.Client('wss://broker.emqx.io:8084/mqtt', Math.random().toString(36).substring(20));
 
       let canvas = document.getElementById("canvas");
+      let colorPick = document.getElementById("draw_color");
       let context = canvas.getContext("2d");
-
+      let history = document.getElementById("color_history").rows[0];
 
       client.onConnectionLost = onConnectionLost;
       client.onMessageArrived = onMessageArrived;
 
       client.connect({onSuccess:onConnect});
 
+      for(let i=0; i < 10; i++) {
+        history.appendChild(history.cells[0].cloneNode());
+      }
+
 
       function onConnect() {
         // Once a connection has been made, make a subscription and send a message.
         console.log("onConnect");
-        client.subscribe(draw_topic);
-        client.subscribe(sync_topic);
+        client.subscribe(DRAW_TOPIC);
+        client.subscribe(SYNC_TOPIC);
 
         message = new Paho.MQTT.Message("1");
-        message.destinationName = connect_topic;
+        message.destinationName = CONNECT_TOPIC;
         client.send(message);
       }
 
@@ -98,6 +116,11 @@
         return '' + r + g + b;
       }
 
+      function rgb2hex(rgb){
+         return `#${rgb.match(/^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/).slice(1).map(n => parseInt(n, 10).toString(16).padStart(2, '0')).join('')}`;
+      }
+
+
       let pixel_width = context.canvas.clientWidth / canvas.width;
       let pixel_height = context.canvas.clientHeight / canvas.height;
 
@@ -123,9 +146,38 @@
         payload[1] = c >> 8;
         payload[2] = c & 0xFF;
         message = new Paho.MQTT.Message(payload);
-        message.destinationName = draw_topic;
+        message.destinationName = DRAW_TOPIC;
         client.send(message);
       }, true);
+
+      canvas.addEventListener('contextmenu', function(e) {
+        e.preventDefault();
+        let x = Math.floor((e.clientX - rect.left) / pixel_width);
+        let y = Math.floor((e.clientY - rect.top) / pixel_height);
+        let p = context.getImageData(x, y, 1, 1).data;        
+        document.getElementById("draw_color").value = '#' + ("000000" + ((p[0] << 16) | (p[1] << 8) | p[2]).toString(16)).slice(-6);
+        colorPick.dispatchEvent(new Event('change'));
+        return false;
+      }, false);
+
+      colorPick.addEventListener("change", function(e) {
+        let history = document.getElementById("color_history").rows[0];
+        for (let i=history.cells.length-1; i > 0; i--) {
+          history.cells[i].style.backgroundColor = history.cells[i-1].style.backgroundColor;
+        }
+        history.cells[0].style.backgroundColor = document.getElementById("draw_color").value;
+      });
+      colorPick.dispatchEvent(new Event('change')); // Init
+
+      function selectHistory() {
+        if(!this.style.backgroundColor)
+          return;
+        document.getElementById("draw_color").value = rgb2hex(this.style.backgroundColor);
+      }
+
+      for (let i = 0; i < history.cells.length; i++){
+        history.cells[i].addEventListener("click", selectHistory)
+      }
 
     </script>
 </body>
