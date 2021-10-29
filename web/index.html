@@ -5,10 +5,9 @@
     <title>LED Draw</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js" type="text/javascript"></script>
     <style>
-      td.color_history {
+      #color_history td {
         width: 20px;
         height: 20px;
-        background-color: black;
       }
     </style>
   </head>
@@ -23,7 +22,7 @@
 
     <table id="color_history">
       <tr>
-        <td class="color_history"></td>
+        <td style="background-color: #000000"></td>
       </tr>
     </table>
 
@@ -162,10 +161,16 @@
 
       colorPick.addEventListener("change", function(e) {
         let history = document.getElementById("color_history").rows[0];
+        let newColor = document.getElementById("draw_color").value;
+        for (let i=0; i < history.cells.length; i++) {
+          if(rgb2hex(history.cells[i].style.backgroundColor) == newColor) {
+            return;
+          }
+        }
         for (let i=history.cells.length-1; i > 0; i--) {
           history.cells[i].style.backgroundColor = history.cells[i-1].style.backgroundColor;
         }
-        history.cells[0].style.backgroundColor = document.getElementById("draw_color").value;
+        history.cells[0].style.backgroundColor = newColor;
       });
       colorPick.dispatchEvent(new Event('change')); // Init
 
