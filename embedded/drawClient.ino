@@ -7,6 +7,7 @@ extern "C" {
 #include <Adafruit_GFX.h>
 #include <Adafruit_NeoMatrix.h>
 #include <Adafruit_NeoPixel.h>
+#include "images.h"
 
 #define PIN 16
 
@@ -48,6 +49,12 @@ void startWifi() {
     wifiManager.setEnableConfigPortal(true);
     wifiManager.autoConnect("draw", "drawdraw");
   }
+}
+
+void sync() {
+  Serial.print("Sync");
+  mqttClient.publish(SYNC_TOPIC, 1, false, (char*)data, sizeof(data));
+  Serial.println();
 }
 
 void connectToMqtt() {
@@ -92,7 +99,14 @@ void onMqttMessage(char* topic, char* payload, AsyncMqttClientMessageProperties 
   Serial.println(topic);
 
   if (strcmp(topic, DRAW_TOPIC) == 0) {
-    if(length == 3) {
+    if(length == 1) {
+      if(payload[0] < IMAGE_COUNT) {
+        Serial.printf("Picture %d\n", payload[0]);
+        memcpy_P(data, IMAGES[(uint8_t)payload[0]], sizeof(data));
+        syncMatrix = true;
+        sync();
+      }
+    } else if(length == 3) {
       uint8_t x = payload[0] >> 4;
       uint8_t y = payload[0] & 0x0F;
 
@@ -147,17 +161,11 @@ void setup() {
   startWifi();
 }
 
-void sync() {
-  Serial.print("Sync");
-  mqttClient.publish(SYNC_TOPIC, 1, false, (char*)data, sizeof(data));
-  Serial.println();
-}
-
 void loop() {
   if(syncMatrix) {
     for(uint8_t x = 0; x < matrix.width(); x++) {
       for(uint8_t y = 0; y < matrix.height(); y++) {
-        matrix.drawPixel(x, y, data[y][x]);
+        matrix.drawPixel(x, y, (data[y][x] << 8) | (data[y][x] >> 8));
       }
     }
     matrix.show();

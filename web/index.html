@@ -85,7 +85,6 @@
         let y = payload[0] & 0x0F;
 
         let c = payload[1]*256 + payload[2];
-
         context.fillStyle = '#' + toHexColor(c);
         context.fillRect(x, y, 1, 1);
       }
@@ -94,6 +93,7 @@
         for(x = 0; x < 8; x++) {
           for(y = 0; y < 8; y++) {
             let i = 2*(x + (y*8));
+            
             let c = payload[i] * 256 + payload[i+1];
             context.fillStyle = '#' + toHexColor(c);
             context.fillRect(x, y, 1, 1);
@@ -160,8 +160,12 @@
       }, false);
 
       colorPick.addEventListener("change", function(e) {
+        addHistory(document.getElementById("draw_color").value);
+      });
+      colorPick.dispatchEvent(new Event('change')); // Init
+
+      function addHistory(newColor) {
         let history = document.getElementById("color_history").rows[0];
-        let newColor = document.getElementById("draw_color").value;
         for (let i=0; i < history.cells.length; i++) {
           if(rgb2hex(history.cells[i].style.backgroundColor) == newColor) {
             return;
@@ -171,8 +175,7 @@
           history.cells[i].style.backgroundColor = history.cells[i-1].style.backgroundColor;
         }
         history.cells[0].style.backgroundColor = newColor;
-      });
-      colorPick.dispatchEvent(new Event('change')); // Init
+      }
 
       function selectHistory() {
         if(!this.style.backgroundColor)

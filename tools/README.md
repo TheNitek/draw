@@ -1,0 +1,1 @@
+converter.py converts those [8x8 pixel characters](https://egordorichev.itch.io/chare) into a C-header file
