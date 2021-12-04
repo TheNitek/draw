@@ -11,10 +11,13 @@ extern "C" {
 
 #define PIN 16
 
+#define MATRIX_WIDTH 8
+#define MATRIX_HEIGHT 8
+
 const char* MQTT_SERVER = "broker.emqx.io";
 const uint16_t MQTT_PORT = 1883;
 
-Adafruit_NeoMatrix matrix = Adafruit_NeoMatrix(8, 8, PIN,
+Adafruit_NeoMatrix matrix = Adafruit_NeoMatrix(MATRIX_WIDTH, MATRIX_HEIGHT, PIN,
   NEO_MATRIX_TOP     + NEO_MATRIX_RIGHT +
   NEO_MATRIX_COLUMNS + NEO_MATRIX_PROGRESSIVE,
   NEO_GRB            + NEO_KHZ800);
@@ -27,10 +30,144 @@ const char DRAW_TOPIC[] = "nitek/draw";
 const char SYNC_TOPIC[] = "nitek/draw/sync";
 const char CONNECT_TOPIC[] = "nitek/draw/connect";
 
-uint16_t data[8][8] = {0};
+uint16_t pixelData[8][8] = {0};
 
 volatile bool updateMatrix = false;
-volatile bool syncMatrix = false;
+volatile bool syncMatrixNeeded = false;
+bool onFire = false;
+
+uint8_t currentImage = 0;
+
+const uint16_t touchThreshold = 30;
+
+class TouchData {
+  public:
+    volatile unsigned long touched = 0;
+    bool touchHandled = false;
+    bool isTouched() {
+      if((touched != 0) && (millis() - touched > 100)) {
+        touchHandled = false;
+        touched = 0;
+      }
+      if(touched && !touchHandled) {
+        touchHandled = true;
+        return true;
+      }
+      return false;
+    }
+};
+
+TouchData touch0;
+TouchData touch3;
+TouchData touch4;
+TouchData touch5;
+
+void IRAM_ATTR handleT0Touch() { touch0.touched = millis();}
+void IRAM_ATTR handleT3Touch() { touch3.touched = millis();}
+void IRAM_ATTR handleT4Touch() { touch4.touched = millis();}
+void IRAM_ATTR handleT5Touch() { touch5.touched = millis();}
+
+class Fire {
+  private:
+    //these values are subtracted from the generated values to give a shape to the animation
+    const uint8_t valueMask[MATRIX_WIDTH][MATRIX_HEIGHT] = {
+        {255, 192, 160, 128, 128, 160, 192, 255},
+        {255, 160, 128, 96 , 96 , 128, 160, 255},
+        {192, 128, 96 , 64 , 64 , 96 , 128, 192},
+        {160, 96 , 64 , 32 , 32 , 64 , 96 , 160},
+        {128, 64 , 32 , 0  , 0  , 32 , 64 , 128},
+        {96 , 32 , 0  , 0  , 0  , 0  , 32 , 96 },
+        {64 , 0  , 0  , 0  , 0  , 0  , 0  , 64 },
+        {32 , 0  , 0  , 0  , 0  , 0  , 0  , 32 }
+    };
+
+    //these are the hues for the fire, should be between 0 (red) to about 25 (yellow)
+    const uint8_t hueMask[MATRIX_WIDTH][MATRIX_HEIGHT] = {
+        {0 , 0 , 0 , 1 , 1 , 0 , 0 , 0},
+        {0 , 0 , 1 , 5 , 5 , 1 , 0 , 0},
+        {0 , 1 , 5 , 8 , 8 , 5 , 1 , 0},
+        {1 , 5 , 11, 11, 11, 11, 5 , 1},
+        {1 , 5 , 11, 13, 13, 13, 5 , 1},
+        {1 , 8 , 17, 16, 19, 16, 8 , 1},
+        {5 , 11, 19, 21, 25, 21, 11, 5},
+        {8 , 18, 23, 25, 25, 24, 18, 8}
+    };
+
+    uint16_t line[MATRIX_WIDTH];
+    uint8_t pcnt = 0;
+
+    /**
+     * Randomly generate the next line
+     */
+    void generateLine(){
+      for(uint8_t x=0; x<MATRIX_WIDTH; x++) {
+        line[x] = random(64, 255);
+      }
+    };
+
+    /**
+     * shift all values in the matrix up one row
+     */
+    void shiftUp() {
+      for (uint8_t y=0; y<MATRIX_HEIGHT-1; y++) {
+        memcpy(pixelData[y], pixelData[y+1], sizeof(uint16_t)*MATRIX_WIDTH);
+      }
+
+      memcpy(pixelData[MATRIX_HEIGHT-1], line, sizeof(uint16_t)*MATRIX_WIDTH);
+    };
+
+    /**
+     * draw a frame, interpolating between 2 "key frames"
+     * @param pcnt percentage of interpolation
+     */
+    void drawFrame() {
+      int nextv;
+      
+      //each row interpolates with the one before it
+      for (uint8_t y=0; y<MATRIX_HEIGHT-1; y++) {
+        for (uint8_t x=0; x<MATRIX_WIDTH; x++) {
+          nextv = 
+              (((100.0-pcnt)*pixelData[y][x] 
+            + pcnt*pixelData[y+1][x])/100.0) 
+            - valueMask[y][x];
+          uint32_t color = Adafruit_NeoMatrix::ColorHSV(
+            hueMask[y][x] << 8, // H
+            255, // S
+            (uint8_t)max(0, nextv) // V
+          );
+          uint16_t rgb = Adafruit_NeoMatrix::Color((color>>16), (color>>8), color);
+          matrix.drawPixel(x, y, rgb);
+        }
+      };
+      
+      //first row interpolates with the "next" line
+      for(uint8_t x=0; x<MATRIX_WIDTH; x++) {
+        uint32_t color = Adafruit_NeoMatrix::ColorHSV(
+          hueMask[MATRIX_HEIGHT-1][x] << 8, // H
+          255,           // S
+          (uint8_t)(((100.0-pcnt)*pixelData[MATRIX_HEIGHT-1][x] + pcnt*line[x])/100.0) // V
+        );
+        uint16_t rgb = Adafruit_NeoMatrix::Color((color>>16), (color>>8), color);
+        matrix.drawPixel(x, MATRIX_HEIGHT-1, rgb);
+      }
+    };
+  public:
+    Fire() {
+      generateLine();
+    };
+    void burn() {
+      if (pcnt >= 100) {
+        shiftUp();
+        generateLine();
+        pcnt = 0;
+      }
+      drawFrame();
+      matrix.show();
+      pcnt+=1;
+    };
+};
+
+Fire fire;
 
 void startWifi() {
   Serial.println("Connecting Wifi");
@@ -38,7 +175,8 @@ void startWifi() {
   WiFiManager wifiManager;
   wifiManager.setDebugOutput(false);
   wifiManager.setEnableConfigPortal(false);
-  wifiManager.setTimeout(0);
+  wifiManager.setTimeout(5*60);
+  wifiManager.setCleanConnect(true);
   uint8_t i = 0;
   while(!wifiManager.autoConnect("draw", "drawdraw") && i++ < 3) {
     Serial.println("Retry autoConnect");
@@ -49,11 +187,14 @@ void startWifi() {
     wifiManager.setEnableConfigPortal(true);
     wifiManager.autoConnect("draw", "drawdraw");
   }
+  if(!WiFi.isConnected()) {
+    ESP.restart();
+  }
 }
 
-void sync() {
-  Serial.print("Sync");
-  mqttClient.publish(SYNC_TOPIC, 1, false, (char*)data, sizeof(data));
+void syncClients() {
+  Serial.print("Sync Clients");
+  mqttClient.publish(SYNC_TOPIC, 1, false, (char*)pixelData, sizeof(pixelData));
   Serial.println();
 }
 
@@ -76,6 +217,9 @@ void WiFiEvent(WiFiEvent_t event) {
         xTimerStop(mqttReconnectTimer, 0); // ensure we don't reconnect to MQTT while reconnecting to Wi-Fi
 		    xTimerStart(wifiReconnectTimer, 0);
         break;
+    default:
+      // Ignore
+      ;
     }
 }
 
@@ -83,7 +227,7 @@ void onMqttConnect(bool sessionPresent) {
   Serial.println("Connected to MQTT.");
   mqttClient.subscribe(CONNECT_TOPIC, 1);
   mqttClient.subscribe(DRAW_TOPIC, 1);
-  sync();
+  syncClients();
 }
 
 void onMqttDisconnect(AsyncMqttClientDisconnectReason reason) {
@@ -94,6 +238,15 @@ void onMqttDisconnect(AsyncMqttClientDisconnectReason reason) {
   }
 }
 
+void syncMatrix() {
+  for(uint8_t x = 0; x < matrix.width(); x++) {
+    for(uint8_t y = 0; y < matrix.height(); y++) {
+      matrix.drawPixel(x, y, (pixelData[y][x] << 8) | (pixelData[y][x] >> 8));
+    }
+  }
+  matrix.show();
+}
+
 void onMqttMessage(char* topic, char* payload, AsyncMqttClientMessageProperties properties, size_t length, size_t index, size_t total) {
   Serial.print("Message arrived on topic: ");
   Serial.println(topic);
@@ -102,9 +255,9 @@ void onMqttMessage(char* topic, char* payload, AsyncMqttClientMessageProperties 
     if(length == 1) {
       if(payload[0] < IMAGE_COUNT) {
         Serial.printf("Picture %d\n", payload[0]);
-        memcpy_P(data, IMAGES[(uint8_t)payload[0]], sizeof(data));
-        syncMatrix = true;
-        sync();
+        memcpy_P(pixelData, IMAGES[(uint8_t)payload[0]], sizeof(pixelData));
+        syncMatrixNeeded = true;
+        syncClients();
       }
     } else if(length == 3) {
       uint8_t x = payload[0] >> 4;
@@ -117,36 +270,59 @@ void onMqttMessage(char* topic, char* payload, AsyncMqttClientMessageProperties 
 
       uint16_t color = payload[2] * 256 + payload[1];
 
-      if(data[y][x] != color) {
-        data[y][x] = color;
+      if(pixelData[y][x] != color) {
+        pixelData[y][x] = color;
 
         matrix.drawPixel(x, y, payload[1] * 256 + payload[2]);
         updateMatrix = true;
       }
-    } else if (length == sizeof(data)) {
-      memcpy(data, payload, sizeof(data));
-      syncMatrix = true;
+    } else if (length == sizeof(pixelData)) {
+      memcpy(pixelData, payload, sizeof(pixelData));
+      syncMatrixNeeded = true;
     } else {
       Serial.print("Wrong msg size: ");
       Serial.println(length);
       return;
     }
   } else if (strcmp(topic, CONNECT_TOPIC) == 0) {
-    sync();
+    syncClients();
   } else {
     Serial.print("Wrong topic?! ");
     Serial.println(topic);
   }
 }
 
+void showImage(uint8_t imageNo) {
+  currentImage = imageNo;
+  onFire = false;
+  memcpy_P(pixelData, IMAGES[imageNo], sizeof(pixelData));
+  syncMatrix();
+  matrix.show();
+  syncClients();
+}
+
 void setup() {
   Serial.begin(115200);
 
+  touch_pad_init();
+  touch_pad_set_fsm_mode(TOUCH_FSM_MODE_TIMER);
+  touch_pad_filter_start(500);
+  delay(500);
+  touchAttachInterrupt(T0, handleT0Touch, touchThreshold);
+  touchAttachInterrupt(T3, handleT3Touch, touchThreshold);
+  touchAttachInterrupt(T4, handleT4Touch, touchThreshold);
+  touchAttachInterrupt(T5, handleT5Touch, touchThreshold);
+
+  randomSeed(analogRead(0));
+
   matrix.begin();
-  matrix.setBrightness(20);
+  matrix.setBrightness(10);
   matrix.setRotation(1);
-  matrix.fill(0);
-  matrix.show();
+  // Show Random Image on Startup
+  currentImage = random(IMAGE_COUNT);
+  showImage(currentImage);
+
+  ESP.getEfuseMac();
 
   mqttReconnectTimer = xTimerCreate("mqttTimer", pdMS_TO_TICKS(2000), pdFALSE, (void*)0, reinterpret_cast<TimerCallbackFunction_t>(connectToMqtt));
   wifiReconnectTimer = xTimerCreate("wifiTimer", pdMS_TO_TICKS(2000), pdFALSE, (void*)0, reinterpret_cast<TimerCallbackFunction_t>(startWifi));
@@ -162,17 +338,38 @@ void setup() {
 }
 
 void loop() {
-  if(syncMatrix) {
-    for(uint8_t x = 0; x < matrix.width(); x++) {
-      for(uint8_t y = 0; y < matrix.height(); y++) {
-        matrix.drawPixel(x, y, (data[y][x] << 8) | (data[y][x] >> 8));
-      }
-    }
-    matrix.show();
-    syncMatrix = false;
+  if(syncMatrixNeeded) {
+    syncMatrix();
+    syncMatrixNeeded = false;
+    onFire = false;
   }
   if(updateMatrix) {
     matrix.show();
     updateMatrix = false;
+    onFire = false;
+  }
+  if(onFire) {
+    fire.burn();
+  }
+
+  if(touch0.isTouched()) {
+    showImage((currentImage ? currentImage-1 : IMAGE_COUNT-1));
+  }
+  if(touch3.isTouched()) {
+    showImage((currentImage+1) % IMAGE_COUNT);
+  }
+  if(touch4.isTouched()) {
+    Serial.println("On fire!");
+    memset(pixelData, 0, sizeof(pixelData));
+    matrix.clear();
+    onFire = true;
+  }
+  if(touch5.isTouched()) {
+    Serial.println("Clear screen");
+    onFire = false;
+    memset(pixelData, 0, sizeof(pixelData));
+    matrix.clear();
+    matrix.show();
+    syncClients();
   }
 }
