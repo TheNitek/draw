@@ -3,6 +3,7 @@ extern "C" {
 	#include "freertos/FreeRTOS.h"
 	#include "freertos/timers.h"
 }
+#include <inttypes.h>
 #include <AsyncMqttClient.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_NeoMatrix.h>
@@ -26,9 +27,13 @@ AsyncMqttClient mqttClient;
 TimerHandle_t mqttReconnectTimer;
 TimerHandle_t wifiReconnectTimer;
 
-const char DRAW_TOPIC[] = "nitek/draw";
-const char SYNC_TOPIC[] = "nitek/draw/sync";
-const char CONNECT_TOPIC[] = "nitek/draw/connect";
+const char DRAW_TOPIC_TPL[] = "draw/%" PRIx64;
+const char SYNC_TOPIC_TPL[] = "draw/%" PRIx64 "/sync";
+const char CONNECT_TOPIC_TPL[] = "draw/%" PRIx64 "/connect";
+
+char DRAW_TOPIC[50] = "";
+char SYNC_TOPIC[50] = "";
+char CONNECT_TOPIC[50] = "";
 
 uint16_t pixelData[8][8] = {0};
 
@@ -322,7 +327,15 @@ void setup() {
   currentImage = random(IMAGE_COUNT);
   showImage(currentImage);
 
-  ESP.getEfuseMac();
+  //ESP.getEfuseMac();
+  sprintf(DRAW_TOPIC, DRAW_TOPIC_TPL, ESP.getEfuseMac());
+  sprintf(SYNC_TOPIC, SYNC_TOPIC_TPL, ESP.getEfuseMac());
+  sprintf(CONNECT_TOPIC, CONNECT_TOPIC_TPL, ESP.getEfuseMac());
+
+  Serial.println("Topics:");
+  Serial.println(DRAW_TOPIC);
+  Serial.println(SYNC_TOPIC);
+  Serial.println(CONNECT_TOPIC);
 
   mqttReconnectTimer = xTimerCreate("mqttTimer", pdMS_TO_TICKS(2000), pdFALSE, (void*)0, reinterpret_cast<TimerCallbackFunction_t>(connectToMqtt));
   wifiReconnectTimer = xTimerCreate("wifiTimer", pdMS_TO_TICKS(2000), pdFALSE, (void*)0, reinterpret_cast<TimerCallbackFunction_t>(startWifi));

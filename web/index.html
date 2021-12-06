@@ -5,31 +5,77 @@
     <title>LED Draw</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js" type="text/javascript"></script>
     <style>
+      body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        background-color: #7f93cb;
+        text-align: center;
+        font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,"Noto Sans",sans-serif;
+      }
+      #draw {
+        position: relative;
+        background-image: url("christmakes-brd.svg");
+        background-repeat: no-repeat;
+        background-size: 943px;
+        width: 700px;
+        height: 600px;
+        margin-left: auto;
+        margin-right: auto;
+      }
+      #tools {
+        position: relative;
+        width: 700px;
+        margin-left: auto;
+        margin-right: auto;
+      }
+      #canvas {
+        position: absolute;
+        top: 180px;
+        left: 121px;
+        width: 321px;
+        height: 321px;
+        image-rendering: -moz-crisp-edges;
+        image-rendering: pixelated;
+        margin-bottom: 10px;
+        border:1px solid #b5b277;
+      }
+      #color_history {
+        float: right;
+      }
       #color_history td {
         width: 20px;
         height: 20px;
       }
+      form {
+        float: left;
+      }
     </style>
   </head>
   <body>
+    <h1>Draw something</h1>
+    <div id="draw">
+      <canvas id="canvas" width="8" height="8"></canvas>
+    </div>
+    <div id="tools">
+      <table id="color_history">
+        <tr>
+          <td style="background-color: #000000"></td>
+        </tr>
+      </table>
+      <form>
+        <label for="draw_color">Choose color: </label>
+        <input type="color" id="draw_color" value="#ee9c6a">
+      </form>
+    </div>
 
-    <canvas id="canvas" style="width:80mm; height:80mm; image-rendering: -moz-crisp-edges; image-rendering: pixelated; margin-bottom: 10px; border:1px solid black;" width="8" height="8"></canvas>
-
-    <form>
-      <label for="draw_color">Choose color: </label>
-      <input type="color" id="draw_color" value="#00AAAA">
-    </form>
-
-    <table id="color_history">
-      <tr>
-        <td style="background-color: #000000"></td>
-      </tr>
-    </table>
 
     <script>
-      const DRAW_TOPIC = 'nitek/draw';
-      const SYNC_TOPIC = 'nitek/draw/sync';
-      const CONNECT_TOPIC = 'nitek/draw/connect';
+      const TV_ID = 'nitek';
+      const DRAW_TOPIC = 'draw/' + TV_ID;
+      const SYNC_TOPIC = 'draw/' + TV_ID + '/sync';
+      const CONNECT_TOPIC = 'draw/' + TV_ID + '/connect';
       client = new Paho.MQTT.Client('wss://broker.emqx.io:8084/mqtt', Math.random().toString(36).substring(20));
 
       let canvas = document.getElementById("canvas");
