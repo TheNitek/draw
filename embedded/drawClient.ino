@@ -298,6 +298,7 @@ void onMqttMessage(char* topic, char* payload, AsyncMqttClientMessageProperties 
 }
 
 void showImage(uint8_t imageNo) {
+  Serial.printf("Image: %d\n", imageNo);
   currentImage = imageNo;
   onFire = false;
   memcpy_P(pixelData, IMAGES[imageNo], sizeof(pixelData));

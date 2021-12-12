@@ -2,7 +2,7 @@ from PIL import Image
 import paho.mqtt.publish as publish
 import time
 
-blacklist = [1, 12, 13, 15, 24, 28, 33, 34, 42, 43, 52]
+blacklist = [1, 12, 13, 15, 24, 28, 31, 32, 33, 34, 42, 43, 45, 52]
 
 with Image.open('chars.png') as img:
   pixels = img.convert("RGB").load()

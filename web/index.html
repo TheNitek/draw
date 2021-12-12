@@ -4,6 +4,7 @@
     <meta charset="utf-8"/>
     <title>LED Draw</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js" type="text/javascript"></script>
+    <script src="id.js" type="text/javascript"></script>
     <style>
       body {
         margin: 0;
@@ -72,7 +73,6 @@
 
 
     <script>
-      const TV_ID = 'nitek';
       const DRAW_TOPIC = 'draw/' + TV_ID;
       const SYNC_TOPIC = 'draw/' + TV_ID + '/sync';
       const CONNECT_TOPIC = 'draw/' + TV_ID + '/connect';
