@@ -35,11 +35,11 @@ char DRAW_TOPIC[50] = "";
 char SYNC_TOPIC[50] = "";
 char CONNECT_TOPIC[50] = "";
 
-uint16_t pixelData[8][8] = {0};
+uint16_t pixelData[MATRIX_WIDTH][MATRIX_HEIGHT] = {{0}};
 
 volatile bool updateMatrix = false;
 volatile bool syncMatrixNeeded = false;
-bool onFire = false;
+volatile bool onFire = false;
 
 uint8_t currentImage = 0;
 
@@ -74,6 +74,8 @@ void IRAM_ATTR handleT5Touch() { touch5.touched = millis();}
 
 class Fire {
   private:
+    uint16_t data[MATRIX_WIDTH][MATRIX_HEIGHT] = {{0}};
+
     //these values are subtracted from the generated values to give a shape to the animation
     const uint8_t valueMask[MATRIX_WIDTH][MATRIX_HEIGHT] = {
         {255, 192, 160, 128, 128, 160, 192, 255},
@@ -115,16 +117,12 @@ class Fire {
      */
     void shiftUp() {
       for (uint8_t y=0; y<MATRIX_HEIGHT-1; y++) {
-        memcpy(pixelData[y], pixelData[y+1], sizeof(uint16_t)*MATRIX_WIDTH);
+        memcpy(data[y], data[y+1], sizeof(uint16_t)*MATRIX_WIDTH);
       }
 
-      memcpy(pixelData[MATRIX_HEIGHT-1], line, sizeof(uint16_t)*MATRIX_WIDTH);
+      memcpy(data[MATRIX_HEIGHT-1], line, sizeof(uint16_t)*MATRIX_WIDTH);
     };
 
-    /**
-     * draw a frame, interpolating between 2 "key frames"
-     * @param pcnt percentage of interpolation
-     */
     void drawFrame() {
       int nextv;
       
@@ -132,8 +130,8 @@ class Fire {
       for (uint8_t y=0; y<MATRIX_HEIGHT-1; y++) {
         for (uint8_t x=0; x<MATRIX_WIDTH; x++) {
           nextv = 
-              (((100.0-pcnt)*pixelData[y][x] 
-            + pcnt*pixelData[y+1][x])/100.0) 
+              (((100.0-pcnt)*data[y][x] 
+            + pcnt*data[y+1][x])/100.0) 
             - valueMask[y][x];
           uint32_t color = Adafruit_NeoMatrix::ColorHSV(
             hueMask[y][x] << 8, // H
@@ -150,7 +148,7 @@ class Fire {
         uint32_t color = Adafruit_NeoMatrix::ColorHSV(
           hueMask[MATRIX_HEIGHT-1][x] << 8, // H
           255,           // S
-          (uint8_t)(((100.0-pcnt)*pixelData[MATRIX_HEIGHT-1][x] + pcnt*line[x])/100.0) // V
+          (uint8_t)(((100.0-pcnt)*data[MATRIX_HEIGHT-1][x] + pcnt*line[x])/100.0) // V
         );
         uint16_t rgb = Adafruit_NeoMatrix::Color((color>>16), (color>>8), color);
         matrix.drawPixel(x, MATRIX_HEIGHT-1, rgb);
@@ -170,6 +168,10 @@ class Fire {
       matrix.show();
       pcnt+=1;
     };
+    void reset() {
+      memset(data, 0, sizeof(data));
+      matrix.clear();
+    }
 };
 
 Fire fire;
@@ -290,6 +292,8 @@ void onMqttMessage(char* topic, char* payload, AsyncMqttClientMessageProperties 
       return;
     }
   } else if (strcmp(topic, CONNECT_TOPIC) == 0) {
+    onFire = false;
+    syncMatrixNeeded = true;
     syncClients();
   } else {
     Serial.print("Wrong topic?! ");
@@ -352,7 +356,7 @@ void setup() {
 }
 
 void loop() {
-  if(syncMatrixNeeded) {
+  if(syncMatrixNeeded || (updateMatrix && onFire)) {
     syncMatrix();
     syncMatrixNeeded = false;
     onFire = false;
@@ -360,7 +364,6 @@ void loop() {
   if(updateMatrix) {
     matrix.show();
     updateMatrix = false;
-    onFire = false;
   }
   if(onFire) {
     fire.burn();
@@ -374,8 +377,7 @@ void loop() {
   }
   if(touch4.isTouched()) {
     Serial.println("On fire!");
-    memset(pixelData, 0, sizeof(pixelData));
-    matrix.clear();
+    fire.reset();
     onFire = true;
   }
   if(touch5.isTouched()) {
