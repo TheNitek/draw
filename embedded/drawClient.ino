@@ -345,14 +345,15 @@ void setup() {
   mqttReconnectTimer = xTimerCreate("mqttTimer", pdMS_TO_TICKS(2000), pdFALSE, (void*)0, reinterpret_cast<TimerCallbackFunction_t>(connectToMqtt));
   wifiReconnectTimer = xTimerCreate("wifiTimer", pdMS_TO_TICKS(2000), pdFALSE, (void*)0, reinterpret_cast<TimerCallbackFunction_t>(startWifi));
 
-  WiFi.onEvent(WiFiEvent);
-
   mqttClient.onConnect(onMqttConnect);
   mqttClient.onDisconnect(onMqttDisconnect);
   mqttClient.onMessage(onMqttMessage);
   mqttClient.setServer(MQTT_SERVER, MQTT_PORT);
 
   startWifi();
+
+  // Do this after wifi connection or we will interrupt the WiFiManager
+  WiFi.onEvent(WiFiEvent);
 }
 
 void loop() {
