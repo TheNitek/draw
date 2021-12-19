@@ -187,7 +187,9 @@
         });
 
         canvas.addEventListener("mousedown", e => {
-          dragActive = true;
+          if(event.button == 0) {
+            dragActive = true;
+          }
         });
         canvas.addEventListener("mouseup", e => {
           dragActive = false;
