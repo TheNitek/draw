@@ -82,6 +82,7 @@
       let colorPick = document.getElementById("draw_color");
       let context = canvas.getContext("2d");
       let history = document.getElementById("color_history").rows[0];
+      let dragActive = false;
 
       client.onConnectionLost = onConnectionLost;
       client.onMessageArrived = onMessageArrived;
@@ -175,25 +176,22 @@
       context.fillStyle = "black";
       context.fillRect(0, 0, canvas.width, canvas.height);
 
-      canvas.addEventListener("click", function(e) {
-        let x = Math.floor((e.clientX - rect.left) / pixel_width);
-        let y = Math.floor((e.clientY - rect.top) / pixel_height);
-
-        context.fillStyle = document.getElementById("draw_color").value;
-        context.fillRect(x, y, 1, 1);
-        let r = Number('0x' + context.fillStyle.substr(1, 2)).toString(10);
-        let g = Number('0x' + context.fillStyle.substr(3, 2)).toString(10);
-        let b = Number('0x' + context.fillStyle.substr(5, 2)).toString(10);
-        let c = ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3);
-
-        let payload = new Uint8Array(3);
-        payload[0] = (x << 4) | y;
-        payload[1] = c >> 8;
-        payload[2] = c & 0xFF;
-        message = new Paho.MQTT.Message(payload);
-        message.destinationName = DRAW_TOPIC;
-        client.send(message);
+      canvas.addEventListener("click", e => {
+        drawEvent(e);
       }, true);
+
+      canvas.addEventListener("mousemove", e => {
+            if (dragActive) {
+              drawEvent(e);
+            }
+        });
+
+        canvas.addEventListener("mousedown", e => {
+          dragActive = true;
+        });
+        canvas.addEventListener("mouseup", e => {
+          dragActive = false;
+        });
 
       canvas.addEventListener('contextmenu', function(e) {
         e.preventDefault();
@@ -227,6 +225,26 @@
         if(!this.style.backgroundColor)
           return;
         document.getElementById("draw_color").value = rgb2hex(this.style.backgroundColor);
+      }
+
+      function drawEvent(e) {
+        let x = Math.floor((e.clientX - rect.left) / pixel_width);
+        let y = Math.floor((e.clientY - rect.top) / pixel_height);
+
+        context.fillStyle = document.getElementById("draw_color").value;
+        context.fillRect(x, y, 1, 1);
+        let r = Number('0x' + context.fillStyle.substr(1, 2)).toString(10);
+        let g = Number('0x' + context.fillStyle.substr(3, 2)).toString(10);
+        let b = Number('0x' + context.fillStyle.substr(5, 2)).toString(10);
+        let c = ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3);
+
+        let payload = new Uint8Array(3);
+        payload[0] = (x << 4) | y;
+        payload[1] = c >> 8;
+        payload[2] = c & 0xFF;
+        message = new Paho.MQTT.Message(payload);
+        message.destinationName = DRAW_TOPIC;
+        client.send(message);
       }
 
       for (let i = 0; i < history.cells.length; i++){
