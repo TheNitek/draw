@@ -53,40 +53,12 @@
       form {
         float: left;
       }
-      .tg  {
-        border-collapse:collapse;
-        border-spacing:0;
-      }
-      .tg td { 
-        border-color:black;
-        border-style:solid;
-        border-width:1px;
-        font-family:Arial, sans-serif;
-        font-size:14px;
-        overflow:hidden;
-        padding:10px 5px;
-        word-break:normal;
-      }
-      .tg th {
-        border-color:black;
-        border-style:solid;
-        border-width:1px;
-        font-family:Arial, sans-serif;
-        font-size:14px;
-        font-weight:normal;
-        overflow:hidden;
-        padding:10px 5px;
-        word-break:normal;
-      }
-      .tg .tg-73oq { 
-        border-color:#000000;
-        text-align:left;
-        vertical-align:top
-      }
-      img {
+      .icon {
         image-rendering: pixelated;
         image-rendering: -moz-crisp-edges;
         image-rendering: crisp-edges;
+        width:64px;
+        height:64px;
       }
     </style>
   </head>
@@ -290,7 +262,7 @@
       }
 
       function sendIcon(iconPath) {
-        var c = document.getElementById("myCanvas");
+        var c = document.getElementById("iconPlaceholder");
         var ctx = c.getContext("2d");
         base_image = new Image();
         base_image.src = iconPath;
@@ -299,7 +271,6 @@
           var d = ctx.getImageData(0, 0, 8, 8).data;
 
           for (let i = 0; i < (d.length / 4); i++) {
-            const element = d[i];
             x = i % 8;
             y = Math.floor(i / 8);
 
@@ -321,6 +292,29 @@
 
       }
 
+      // Load the icons from icons.js
+      function loadIcons() {
+        var table = document.getElementById("iconTable");
+
+        var rowCount = -1;
+        var cellCount = 0;
+        var row = [];
+        var cell = [];
+
+        for (let i = 0; i < icons.length; i++) {
+          if ((i%3) == 0) {
+            rowCount++;
+            var row = table.insertRow(rowCount);
+            cellCount = 0;
+          }
+          var cell = row.insertCell(cellCount);
+          cell.innerHTML = "<picture><img src=\""+icons[i].iconPath+"\" alt=\""+icons[i].iconTitle+"\" class=\"icon\" onclick=\"sendIcon('"+icons[i].iconPath+"')\"></picture>";
+          cellCount++;
+        }
+
+      }
+        
+loadIcons();
     </script>
     <br>
     <br>
@@ -329,32 +323,10 @@
     <table class="tg" id="iconTable"></table>
     </center>
 
-    <canvas id="myCanvas" width="8" height="8" style="border:1px solid #ff0000; display: none;">
+    <canvas id="iconPlaceholder" width="8" height="8" style="display: none;">
       Your browser does not support the HTML canvas tag.</canvas>
 <script>
 
-function loadIcons() {
-  var table = document.getElementById("iconTable");
-
-  var rowCount = -1;
-  var cellCount = 0;
-  var row = [];
-  var cell = [];
-
-  for (let i = 0; i < icons.length; i++) {
-    if ((i%3) == 0) {
-      rowCount++;
-      var row = table.insertRow(rowCount);
-      cellCount = 0;
-    }
-    var cell = row.insertCell(cellCount);
-    cell.innerHTML = "<picture><img src=\""+icons[i].iconPath+"\" alt=\""+icons[i].iconTitle+"\" style=\"width:64px;height:64px;\" onclick=\"sendIcon('"+icons[i].iconPath+"')\"></picture>";
-    cellCount++;
-  }
-
-}
-        
-loadIcons();
 </script>
 </body>
 </html>
