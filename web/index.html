@@ -289,8 +289,6 @@
           let payload = new Uint8Array(128);
 
           for (let i = 0; i < (d.length / 4); i++) {
-            x = i % 8;
-            y = Math.floor(i / 8);
 
             r = d[i*4];
             g = d[(i*4)+1];
