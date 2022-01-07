@@ -1,39 +1,39 @@
 const icons = [
     {
-      "iconPath": "icons/twitter.png",
-      "iconTitle": "Twitter"
+      "iconPath": "icons/cat.png",
+      "iconTitle": "Cat"
+    },
+    {
+      "iconPath": "icons/dino.png",
+      "iconTitle": "Dinosaur"
     },
     {
       "iconPath": "icons/dog.png",
       "iconTitle": "Dog"
     },
     {
-      "iconPath": "icons/fire.png",
-      "iconTitle": "Fire"
+      "iconPath": "icons/duck.png",
+      "iconTitle": "Duck"
     },
     {
-      "iconPath": "icons/cry.png",
-      "iconTitle": "Crying"
+      "iconPath": "icons/man.png",
+      "iconTitle": "Man"
     },
     {
-      "iconPath": "icons/laugh.png",
-      "iconTitle": "Laughing"
+      "iconPath": "icons/monster.png",
+      "iconTitle": "Monster"
     },
     {
-      "iconPath": "icons/smile.png",
-      "iconTitle": "Smiling"
+      "iconPath": "icons/plant.png",
+      "iconTitle": "Plant"
     },
     {
-      "iconPath": "icons/world.png",
-      "iconTitle": "World"
+      "iconPath": "icons/robot.png",
+      "iconTitle": "Robot"
     },
     {
-      "iconPath": "icons/dead.png",
-      "iconTitle": "Skull"
-    },
-    {
-      "iconPath": "icons/love.png",
-      "iconTitle": "Heart"
+      "iconPath": "icons/yoda.png",
+      "iconTitle": "Yoda"
     }
 
   ]

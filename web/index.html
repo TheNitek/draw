@@ -60,6 +60,14 @@
         width:64px;
         height:64px;
       }
+      .iconArea {
+        margin-top: 75px;
+        text-align: center;
+      }
+      .iconTable  {
+        margin-left: auto;
+        margin-right: auto;
+      }
     </style>
   </head>
   <body>
@@ -79,6 +87,13 @@
       </form>
     </div>
 
+    <div class="iconArea">
+      <h1>Send some icon</h1>
+      <table class="iconTable" id="iconTable"></table>
+    </div>
+
+    <canvas id="iconPlaceholder" width="8" height="8" style="display: none;">
+      Your browser does not support the HTML canvas tag.</canvas>
 
     <script>
       const DRAW_TOPIC = 'draw/' + TV_ID;
@@ -308,25 +323,13 @@
             cellCount = 0;
           }
           var cell = row.insertCell(cellCount);
-          cell.innerHTML = "<picture><img src=\""+icons[i].iconPath+"\" alt=\""+icons[i].iconTitle+"\" class=\"icon\" onclick=\"sendIcon('"+icons[i].iconPath+"')\"></picture>";
+          cell.innerHTML = "<img src=\""+icons[i].iconPath+"\" alt=\""+icons[i].iconTitle+"\" class=\"icon\" onclick=\"sendIcon('"+icons[i].iconPath+"')\">";
           cellCount++;
         }
 
       }
         
-loadIcons();
+      loadIcons();
     </script>
-    <br>
-    <br>
-    <h1>Send some icons</h1>
-    <center>
-    <table class="tg" id="iconTable"></table>
-    </center>
-
-    <canvas id="iconPlaceholder" width="8" height="8" style="display: none;">
-      Your browser does not support the HTML canvas tag.</canvas>
-<script>
-
-</script>
 </body>
 </html>
