@@ -276,6 +276,7 @@
         history.cells[i].addEventListener("click", selectHistory)
       }
 
+      // Send icons as matrix
       function sendIcon(iconPath) {
         var c = document.getElementById("iconPlaceholder");
         var ctx = c.getContext("2d");
@@ -284,6 +285,8 @@
         base_image.onload = function(){
           ctx.drawImage(base_image, 0, 0);
           var d = ctx.getImageData(0, 0, 8, 8).data;
+
+          let payload = new Uint8Array(128);
 
           for (let i = 0; i < (d.length / 4); i++) {
             x = i % 8;
@@ -294,14 +297,14 @@
             b = d[(i*4)+2];
             let p = ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3);
 
-            let payload = new Uint8Array(3);
-            payload[0] = (x << 4) | y;
-            payload[1] = p >> 8;
-            payload[2] = p & 0xFF;
-            message = new Paho.MQTT.Message(payload);
-            message.destinationName = DRAW_TOPIC;
-            client.send(message);
+            payload[(i*2)] = p >> 8;
+            payload[(i*2)+1] = p & 0xFF;
+
           }
+
+          message = new Paho.MQTT.Message(payload);
+          message.destinationName = DRAW_TOPIC;
+          client.send(message);
 
         }
 
