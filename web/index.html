@@ -60,11 +60,12 @@
         width:64px;
         height:64px;
       }
-      .iconArea {
+      #iconArea {
         margin-top: 75px;
         text-align: center;
+        display: none;
       }
-      .iconTable  {
+      #iconTable  {
         margin-left: auto;
         margin-right: auto;
       }
@@ -87,13 +88,11 @@
       </form>
     </div>
 
-    <div class="iconArea">
+    <div id="iconArea">
       <h1>Send some icon</h1>
-      <table class="iconTable" id="iconTable"></table>
+      <table id="iconTable"></table>
+      <canvas id="iconPlaceholder" width="8" height="8" style="display: none;"></canvas>
     </div>
-
-    <canvas id="iconPlaceholder" width="8" height="8" style="display: none;">
-      Your browser does not support the HTML canvas tag.</canvas>
 
     <script>
       const DRAW_TOPIC = 'draw/' + TV_ID;
@@ -272,10 +271,6 @@
         client.send(message);
       }
 
-      for (let i = 0; i < history.cells.length; i++){
-        history.cells[i].addEventListener("click", selectHistory)
-      }
-
       // Send icons as matrix
       function sendIcon(iconPath) {
         var c = document.getElementById("iconPlaceholder");
@@ -310,26 +305,31 @@
 
       // Load the icons from icons.js
       function loadIcons() {
-        var table = document.getElementById("iconTable");
+        if(icons.length == 0) {
+          return;
+        }
 
-        var rowCount = -1;
-        var cellCount = 0;
-        var row = [];
-        var cell = [];
+        document.getElementById("iconArea").style.display = 'block';
+
+        let table = document.getElementById("iconTable");
+
+        let row;
 
         for (let i = 0; i < icons.length; i++) {
           if ((i%3) == 0) {
-            rowCount++;
-            var row = table.insertRow(rowCount);
-            cellCount = 0;
+            row = table.insertRow();
           }
-          var cell = row.insertCell(cellCount);
+          let cell = row.insertCell();
           cell.innerHTML = "<img src=\""+icons[i].iconPath+"\" alt=\""+icons[i].iconTitle+"\" class=\"icon\" onclick=\"sendIcon('"+icons[i].iconPath+"')\">";
-          cellCount++;
         }
 
       }
         
+      
+      for (let i = 0; i < history.cells.length; i++){
+        history.cells[i].addEventListener("click", selectHistory)
+      }
+
       loadIcons();
     </script>
 </body>

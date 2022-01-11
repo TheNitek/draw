@@ -36,4 +36,4 @@ const icons = [
       "iconTitle": "Yoda"
     }
 
-  ]
+  ];
