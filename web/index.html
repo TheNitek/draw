@@ -5,6 +5,7 @@
     <title>LED Draw</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js" type="text/javascript"></script>
     <script src="id.js" type="text/javascript"></script>
+    <script src="icons.js" type="text/javascript"></script>
     <style>
       body {
         margin: 0;
@@ -52,6 +53,21 @@
       form {
         float: left;
       }
+      .icon {
+        image-rendering: pixelated;
+        image-rendering: -moz-crisp-edges;
+        image-rendering: crisp-edges;
+        width:64px;
+        height:64px;
+      }
+      .iconArea {
+        margin-top: 75px;
+        text-align: center;
+      }
+      .iconTable  {
+        margin-left: auto;
+        margin-right: auto;
+      }
     </style>
   </head>
   <body>
@@ -71,6 +87,13 @@
       </form>
     </div>
 
+    <div class="iconArea">
+      <h1>Send some icon</h1>
+      <table class="iconTable" id="iconTable"></table>
+    </div>
+
+    <canvas id="iconPlaceholder" width="8" height="8" style="display: none;">
+      Your browser does not support the HTML canvas tag.</canvas>
 
     <script>
       const DRAW_TOPIC = 'draw/' + TV_ID;
@@ -253,6 +276,61 @@
         history.cells[i].addEventListener("click", selectHistory)
       }
 
+      // Send icons as matrix
+      function sendIcon(iconPath) {
+        var c = document.getElementById("iconPlaceholder");
+        var ctx = c.getContext("2d");
+        base_image = new Image();
+        base_image.src = iconPath;
+        base_image.onload = function(){
+          ctx.drawImage(base_image, 0, 0);
+          var d = ctx.getImageData(0, 0, 8, 8).data;
+
+          let payload = new Uint8Array(128);
+
+          for (let i = 0; i < (d.length / 4); i++) {
+
+            r = d[i*4];
+            g = d[(i*4)+1];
+            b = d[(i*4)+2];
+            let p = ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3);
+
+            payload[(i*2)] = p >> 8;
+            payload[(i*2)+1] = p & 0xFF;
+
+          }
+
+          message = new Paho.MQTT.Message(payload);
+          message.destinationName = DRAW_TOPIC;
+          client.send(message);
+
+        }
+
+      }
+
+      // Load the icons from icons.js
+      function loadIcons() {
+        var table = document.getElementById("iconTable");
+
+        var rowCount = -1;
+        var cellCount = 0;
+        var row = [];
+        var cell = [];
+
+        for (let i = 0; i < icons.length; i++) {
+          if ((i%3) == 0) {
+            rowCount++;
+            var row = table.insertRow(rowCount);
+            cellCount = 0;
+          }
+          var cell = row.insertCell(cellCount);
+          cell.innerHTML = "<img src=\""+icons[i].iconPath+"\" alt=\""+icons[i].iconTitle+"\" class=\"icon\" onclick=\"sendIcon('"+icons[i].iconPath+"')\">";
+          cellCount++;
+        }
+
+      }
+        
+      loadIcons();
     </script>
 </body>
 </html>
