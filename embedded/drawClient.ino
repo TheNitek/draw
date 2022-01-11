@@ -351,6 +351,7 @@ void setup() {
   mqttClient.setServer(MQTT_SERVER, MQTT_PORT);
 
   startWifi();
+  connectToMqtt();
 
   // Do this after wifi connection or we will interrupt the WiFiManager
   WiFi.onEvent(WiFiEvent);
