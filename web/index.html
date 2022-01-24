@@ -252,8 +252,8 @@
       }
 
       function drawEvent(e) {
-        let x = Math.floor((e.clientX - rect.left) / pixel_width);
-        let y = Math.floor((e.clientY - rect.top) / pixel_height);
+        let x = Math.floor((e.clientX - rect.left + window.scrollX) / pixel_width);
+        let y = Math.floor((e.clientY - rect.top + window.scrollY) / pixel_height);
 
         context.fillStyle = document.getElementById("draw_color").value;
         context.fillRect(x, y, 1, 1);
